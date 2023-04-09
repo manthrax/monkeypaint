@@ -85,7 +85,6 @@ function ScenePainter(paintScene) {
     let setEnvBrightness=(v)=>{
         scene.traverse(e=>e.isMesh&&e.material&&(e.material.envMapIntensity = v));
     }
-    setEnvBrightness(.5);
 
     this.exportScene = ()=>{
 
@@ -151,13 +150,15 @@ function ScenePainter(paintScene) {
     gui.add(paintMesh.material, "roughness", 0, 1);
     gui.add(paintMesh.material, "metalness", 0, 1);
 
-    gui.add({intensity:.5}, "intensity", 0, 1).name("env brightness:").onChange(setEnvBrightness)
+    gui.add({intensity:.25}, "intensity", 0, 1).name("env brightness:").onChange(setEnvBrightness)
     gui.add(previewPlane, 'visible').name('tex : ' + paintMesh.name);
 
     
     gui.add(uBrushStrength, "value", 0, 1.).name("Strength")
     gui.add(uBrushHardness, "value", 0, 1.).name("Hardness")
-    gui.add(uBrushSize.value, "x", .01, 3.).name("Size")
+    gui.add({value:.01},"value", .0, 1.).name("Size").onChange(v=>{
+        uBrushSize.value.x = (Math.pow(v,3.)*3.)+.01;
+    })
     
     const colorFormats = {
         string: '#ff0000',
@@ -378,6 +379,9 @@ ${computeBrushInfluence}
         setUniforms(shader);
 
     }
+    
+    
+    setEnvBrightness(.25);
 }
 
 function FeedbackTexture(texture, renderer) {
