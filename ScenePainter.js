@@ -38,9 +38,6 @@ function ScenePainter(paintScene) {
         value: new THREE.Vector4(1,0,0,1)
     }
 
-    gui.add(uBrushStrength, "value", 0, 1.).name("Strength")
-    gui.add(uBrushHardness, "value", 0, 1.).name("Hardness")
-    gui.add(uBrushSize.value, "x", .01, 3.).name("Size")
 
     scene.add(paintScene);
 
@@ -49,8 +46,11 @@ function ScenePainter(paintScene) {
     paintScene.traverse(e=>e.isMesh && e.material && (paintMaterials.push(e.material) | paintMeshes.push(e)))
 
     paintMeshes.forEach(e=>e.visible = false);
-    
-    let sourceMesh = paintMeshes[2]
+
+    let query = window.location.search.substring(1).split("=");
+    let id = parseInt(query);
+    if(!((id>=0)&&(id<paintMeshes.length))) id = 2;
+    let sourceMesh = paintMeshes[id]
 
     sourceMesh.visible = true;
 
@@ -60,7 +60,6 @@ function ScenePainter(paintScene) {
 
     // sourceMesh.position.x -= .4;
 
-    //    paintMeshes.forEach(e=>e.material.envMapIntensity = 0.5);
 
     let texTransformer = new TextureTransformer(sourceMesh.material.map,renderer)
 
@@ -83,10 +82,10 @@ function ScenePainter(paintScene) {
     let paintMesh = sourceMesh.clone();
     paintMesh.material = paintMesh.material.clone();
 
-    gui.add(previewPlane, 'visible').name('tex : ' + paintMesh.name);
-
-    gui.add(paintMesh.material, "roughness", 0, 1);
-    gui.add(paintMesh.material, "metalness", 0, 1);
+    let setEnvBrightness=(v)=>{
+        scene.traverse(e=>e.isMesh&&e.material&&(e.material.envMapIntensity = v));
+    }
+    setEnvBrightness(.5);
 
     this.exportScene = ()=>{
 
@@ -149,6 +148,17 @@ function ScenePainter(paintScene) {
         }
     }, "export").name("export glb!")
 
+    gui.add(paintMesh.material, "roughness", 0, 1);
+    gui.add(paintMesh.material, "metalness", 0, 1);
+
+    gui.add({intensity:.5}, "intensity", 0, 1).name("env brightness:").onChange(setEnvBrightness)
+    gui.add(previewPlane, 'visible').name('tex : ' + paintMesh.name);
+
+    
+    gui.add(uBrushStrength, "value", 0, 1.).name("Strength")
+    gui.add(uBrushHardness, "value", 0, 1.).name("Hardness")
+    gui.add(uBrushSize.value, "x", .01, 3.).name("Size")
+    
     const colorFormats = {
         string: '#ff0000',
         int: 0xff0000,
