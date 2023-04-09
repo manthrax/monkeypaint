@@ -42,8 +42,8 @@ scene.add(camera);
 let controls = new OrbitControls(camera,renderer.domElement);
 camera.position.set(-0.8, 0.5, 1.8);
 controls.target.set(0, 0.5, 0.0);
-controls.maxPolarAngle = Math.PI * 0.5;
-controls.minPolarAngle = Math.PI * 0.1;
+controls.maxPolarAngle = Math.PI;
+controls.minPolarAngle = -Math.PI;
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
