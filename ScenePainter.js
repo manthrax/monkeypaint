@@ -35,7 +35,7 @@ function ScenePainter(paintScene) {
     }
 
     let uBrushColor = {
-        value: new THREE.Vector4(0,0,0,1)
+        value: new THREE.Vector4(1,0,0,1)
     }
 
     gui.add(uBrushStrength, "value", 0, 1.).name("Strength")
@@ -48,9 +48,11 @@ function ScenePainter(paintScene) {
     let paintMeshes = []
     paintScene.traverse(e=>e.isMesh && e.material && (paintMaterials.push(e.material) | paintMeshes.push(e)))
 
+    paintMeshes.forEach(e=>e.visible = false);
+    
     let sourceMesh = paintMeshes[2]
-    paintMeshes[0].visible = false;
-    paintMeshes[1].visible = false;
+
+    sourceMesh.visible = true;
 
     let p=sourceMesh.position.clone().sub(controls.target);
     controls.target.add(p);
@@ -148,14 +150,14 @@ function ScenePainter(paintScene) {
     }, "export").name("export glb!")
 
     const colorFormats = {
-        string: '#ffffff',
-        int: 0xffffff,
+        string: '#ff0000',
+        int: 0xff0000,
         object: {
             r: 1,
-            g: 1,
-            b: 1
+            g: 0,
+            b: 0
         },
-        array: [1, 1, 1]
+        array: [1, 0, 0]
     };
     let tc = new THREE.Color();
     gui.addColor(colorFormats, 'string').onChange(v=>{
