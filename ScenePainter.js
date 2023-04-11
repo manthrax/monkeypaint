@@ -10,6 +10,7 @@ document.title = "MonkeyPaint by thrax"
 //---------------texpaint
 let scenePainter
 new GLTFLoader().load("monkeh.glb", (glb)=>{
+//new GLTFLoader().load("CartoonTV_bake.glb", (glb)=>{
     scenePainter = new ScenePainter(glb.scene);
 }
 );
@@ -50,7 +51,7 @@ function ScenePainter(paintScene) {
     let query = window.location.search.substring(1).split("=");
     let id = parseInt(query);
     if(!((id>=0)&&(id<paintMeshes.length))) id = 2;
-    let sourceMesh = paintMeshes[id]
+    let sourceMesh = paintMeshes[id%paintMeshes.length]
 
     sourceMesh.visible = true;
 
@@ -86,6 +87,45 @@ function ScenePainter(paintScene) {
         scene.traverse(e=>e.isMesh&&e.material&&(e.material.envMapIntensity = v));
     }
 
+    /*
+    let {min,max,PI} = Math;
+    function indexedGeometryTo2dPerimeter(geom){
+        let arr = geom.index.array;
+        let edges = []
+        for(let i=0,l=arr.length;i<l;i+=3){
+            let a=arr.slice(i,i+3).sort();
+            edges.push([a[0],a[1]],[a[1],a[2]],[a[0],a[2]])
+        }
+        edges.sort((a,b)=>a[0]-b[0]);
+        let uniqueEdges=[]
+        for(let i=0;i<edges.length;i++){
+            let e0=edges[i];
+            let e1=edges[(i+1)%edges.length];
+            if((e0[0]==e1[0])&&(e0[1]==e1[1]))i++; //shared edge.. discard;
+            else
+                uniqueEdges.push(e0);
+        }
+        return uniqueEdges;
+    }
+    let disc = new THREE.RingGeometry(20,10,4,1,0,PI);
+    //let disc = new THREE.CircleGeometry(20,10,0,PI);
+    let m = new THREE.Mesh(disc);
+    scene.add(m);
+    let edges = indexedGeometryTo2dPerimeter(disc);
+    console.log(edges);
+    let edgeGeom = disc.clone();
+    let idx = []
+    for(let i=0;i<edges.length;i++)idx.push(edges[i][0],edges[i][1]);
+    edgeGeom.setIndex(idx);
+    let lines = new THREE.LineSegments(edgeGeom);
+    scene.add(lines);
+
+    let ringPath = ()
+*/
+
+
+
+    
     this.exportScene = ()=>{
 
         const exporter = new GLTFExporter();
@@ -255,13 +295,20 @@ brushInfluence = max(0., brushInfluence - smoothstep(brushInfluence,.1,0.));
     }
 
     let drawing = false;
+    let buttons = 0;
     document.addEventListener('pointerdown', (e)=>{
-        drawing = !(controls.enabled = !(cursorNode.raycast(paintMesh).length > 0));
+        buttons = e.buttons;
+        if(buttons==1){
+            (controls.enabled = !(cursorNode.raycast(paintMesh).length > 0));
+        if(!controls.enabled)
+                drawing = true;
+        }
     }
     );
     document.addEventListener('pointerup', (e)=>{
         controls.enabled = true;
         drawing = false;
+        buttons = e.buttons;
     }
     )
 
@@ -280,21 +327,115 @@ brushInfluence = max(0., brushInfluence - smoothstep(brushInfluence,.1,0.));
 
     renderer.setClearColor(0x101010);
 
+    let replay=[]
+    let replaying = false;
+    let replayCursor = 0;
+    let repeatCountdown=0;
+
+    let load=()=>{
+    try{
+        if(localStorage.monkeyReplay){
+            replay = JSON.parse(localStorage.monkeyReplay);
+            if(replay.length)replaying = true;
+        }
+    }
+    catch{
+        alert("Couldn't parse localstorage! Replay lost...")
+        replay = []
+    }
+    }
+    let getState = ()=>{return {
+        uBrushPoint:uBrushPoint.value.clone(),
+        uBrushNormal:uBrushNormal.value.clone(),
+        uBrushSize:uBrushSize.value.clone(),
+        uBrushColor : uBrushColor.value.clone(),
+        uBrushHardness : uBrushHardness.value,
+        uBrushStrength:uBrushStrength.value,
+        _repeat:1,
+    }}
+    let setState=(st)=>{
+        uBrushPoint.value.copy(st.uBrushPoint)
+        uBrushNormal.value.copy(st.uBrushNormal)
+        uBrushSize.value.copy(st.uBrushSize)
+        uBrushColor.value.copy(st.uBrushColor)
+        uBrushHardness.value=st.uBrushHardness
+        uBrushStrength.value=st.uBrushStrength
+       // console.log(st.uBrushPoint)
+    }
+    let statesEqual=(sa,sb)=>{
+        if(typeof sa == 'object'){
+            for(let f in sa)
+                if((!f.startsWith('_'))&&(!statesEqual(sa[f],sb[f])))
+                    return false;
+        }else
+            return (sa==sb);
+        return true;
+    }
+    
+    let lastState;
+//    window.onBeforeUnload=()=>{
+//        if(replay.length){
+//            localStorage.monkeyReplay = JSON.stringify(replay);
+//        }
+//    }
+
+gui.add({save:()=>{
+    localStorage.monkeyReplay = JSON.stringify(replay);
+    console.log("Save size:",localStorage.monkeyReplay.length)
+}},"save")
+gui.add({load},"load")
+    
+gui.add({reset:()=>{
+    replay=[]
+    //delete localStorage.monkeyReplay;
+    location.reload();
+}},"reset")
+    let updateReplay=()=>{
+        if(replaying){
+            if(replayCursor>=replay.length){
+                replaying = false;
+                lastState = undefined;
+            }else{
+                let state = replay[replayCursor];
+                if(!repeatCountdown)repeatCountdown=state._repeat;
+                else{
+                    repeatCountdown--;
+                    if(!repeatCountdown)replayCursor++;
+                }
+                setState(state);
+            }
+        }else{
+            let state = getState();
+            if(lastState){
+                if(statesEqual(state,lastState))
+                    lastState._repeat++;
+                else
+                    replay.push(lastState)
+            }
+            lastState=state;
+        }
+    }
     let draw = ()=>{
         let fbt = texTransformer.feedbackTexture;
+        let iterations = 0;
+        do{
+        try{
+            updateReplay();
+        }
+        catch (e){
+            console.log(e)
+            replaying = false;
+            replay=[]
+        }
         uvMesh.material.map = fbt.renderTarget.texture;
         texTransformer.renderUVMeshToTarget(fbt.offRenderTarget);
-
-        //       texTransformer.dilateTexture();
-        //     texTransformer.dilateTexture();
-
         previewPlane.material.map = fbt.renderTarget.texture;
         paintMesh.material.map = fbt.renderTarget.texture
-
         uvMesh.material.map = fbt.offRenderTarget.texture;
 
-        dilator.apply(fbt);
-
+            iterations++;
+        }while(replaying&&(iterations<100))
+            dilator.apply(fbt);
     }
 
     //Convert rendertarget to canvasTexture
@@ -305,11 +446,17 @@ brushInfluence = max(0., brushInfluence - smoothstep(brushInfluence,.1,0.));
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         const imageData = ctx.createImageData(width, height);
-        const buffer = new Float32Array(width * height * 4);
-        renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer);
-        for (let i = 0; i < buffer.length; i++)
-            buffer[i] *= 255;
-        imageData.data.set(buffer);
+        if(renderTarget.texture.type==THREE.FloatType){
+            const buffer = new Float32Array(width * height * 4);
+            renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer);
+            for (let i = 0; i < buffer.length; i++)
+                buffer[i] *= 255;
+            imageData.data.set(buffer);
+        }else{
+            const buffer = new Uint8Array(width * height * 4);
+            renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer);
+            imageData.data.set(buffer);            
+        }
         ctx.putImageData(imageData, 0, 0);
         return canvas;
     }
@@ -326,10 +473,9 @@ brushInfluence = max(0., brushInfluence - smoothstep(brushInfluence,.1,0.));
             //paintMesh.worldToLocal(n);
             n.sub(v);
 
-            if (!drawing)
-                return;
-            draw();
         }
+        if ((buttons==1)&&(drawing||replaying))
+            draw();
     }
 
     //This shader renders a models UV coordinates as polygons, and applies the influence of the brush...  rendering the current brush stroke when mouse is down...
@@ -389,7 +535,7 @@ function FeedbackTexture(texture, renderer) {
     let makeTarget = this.makeTarget = ()=>{
         let rt = new THREE.WebGLRenderTarget(texture.image.width,texture.image.height,{
             format: THREE.RGBAFormat,
-            type: THREE.FloatType,
+            type: THREE.UnsignedByteType,//THREE.FloatType,
             //minFilter: THREE.NearestFilter,
             //magFilter: THREE.NearestFilter,
             depthBuffer: false,
@@ -586,6 +732,10 @@ let fps = 60;
 
 let takeScreenshot = false;
 let exportTriggered = false;
+
+let {MOUSE} = THREE;
+controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.ROTATE };
+
 renderer.setAnimationLoop((dt)=>{
 
     let time = performance.now();

@@ -143,7 +143,7 @@ let onWindowResize = (event)=>{
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
 }
-;
+
 
 onWindowResize();
 window.addEventListener("resize", onWindowResize, false);
