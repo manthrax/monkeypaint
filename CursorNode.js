@@ -129,7 +129,7 @@ this.groundPoint = new THREE.Vector3();
     }
 
     addEventListeners() {
-        this.renderer.domElement.addEventListener('mousemove', (event)=>{
+        this.renderer.domElement.addEventListener('pointermove', (event)=>{
             this.updateCursorPosition(event);
         }
         );
