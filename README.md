@@ -3,6 +3,7 @@
 
 Try it here!: https://manthrax.github.io/monkeypaint/index.html?1
 
+![image](https://github.com/manthrax/monkeypaint/assets/350247/864c5544-8145-4dd4-9d0e-6c0038196ede)
 
 This implements 3d mesh painting using via the gpu and rendertargets.
 
