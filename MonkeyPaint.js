@@ -151,5 +151,27 @@ window.addEventListener("resize", onWindowResize, false);
 let cursorNode = new CursorNode(camera,renderer);
 renderer.domElement.style.cursor = 'none'
 
+import PainterApp from "./ScenePainter.js"
+
+let painterApp = new PainterApp({THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode})
+
+
+
+//new GLTFLoader().load("teeth.glb", (glb)=>{
+//new GLTFLoader().load("male-form.glb", (glb)=>{
+//new GLTFLoader().load("female-form.glb", (glb)=>{
+new GLTFLoader().load("monkeh.glb", (glb)=>{
+//new GLTFLoader().load("den.gltf", (glb)=>{
+//new GLTFLoader().load("CartoonTV_bake.glb", (glb)=>{
+    let scenePainter = new painterApp.ScenePainter(glb.scene);
+}
+);
+
+
+
+renderer.setAnimationLoop((time)=>{
+    painterApp.update(time);
+    painterApp.render(time)
+})
 
 export {THREE,GLTFLoader,GLTFExporter, gui,scene,camera,controls,renderer,cursorNode}

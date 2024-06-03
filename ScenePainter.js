@@ -4,16 +4,23 @@ MESH TEXTURE PAINTER by Thrax (C) - manthrax@gmail && vectorslave.com
 
 ***********/
 
-import {THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode} from "./MonkeyPaint.js"
-document.title = "MonkeyPaint by thrax"
+//import {THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode} from "./MonkeyPaint.js"
+import UnwrapUVs from "./UnwrapUVs.js"
 
+export default function PaintApp({THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode}){
+
+//document.title = "MonkeyPaint by thrax"
 //---------------texpaint
-let scenePainter
-new GLTFLoader().load("monkeh.glb", (glb)=>{
+//let scenePainter
+//new GLTFLoader().load("teeth.glb", (glb)=>{
+//new GLTFLoader().load("male-form.glb", (glb)=>{
+//new GLTFLoader().load("female-form.glb", (glb)=>{
+//new GLTFLoader().load("monkeh.glb", (glb)=>{
+//new GLTFLoader().load("den.gltf", (glb)=>{
 //new GLTFLoader().load("CartoonTV_bake.glb", (glb)=>{
-    scenePainter = new ScenePainter(glb.scene);
-}
-);
+//    scenePainter = new ScenePainter(glb.scene);
+//}
+//);
 
 let patch = (obj,fld,ck,fn)=>obj[fld] = obj[fld].replace(`#include <${ck}>`, fn(THREE.ShaderChunk[ck], `#include <${ck}>`));
 
@@ -55,12 +62,50 @@ function ScenePainter(paintScene) {
 
     sourceMesh.visible = true;
 
+
+    
+    let bounds = new THREE.Box3().setFromObject(sourceMesh);
+    let size = bounds.getSize(new THREE.Vector3());
+    let {max}=Math;
+    let maxsz=max(size.x,max(size.y,size.z));
+    //Rescale the model..
+    sourceMesh.scale.multiplyScalar(1/maxsz);
+    sourceMesh.updateMatrixWorld()
+    bounds.setFromObject(sourceMesh);
+    sourceMesh.position.sub(bounds.getCenter(new THREE.Vector3()))
+    
+/*    
+    //Recenter camera/controls on model
+    bounds.getCenter(controls.target)
+    camera.position.copy(controls.target)
+    camera.position.z += maxsz * 1.5;
+  */
+    
+
+if(!sourceMesh.material.map){
+    alert("Object has no Texture/Material assigned.. ")
+    let canv = document.createElement('canvas');
+    canv.width=canv.height=1024;
+    let ctx = canv.getContext('2d');
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0,0,canv.width,canv.height)
+    //sourceMesh.material.map = new THREE.CanvasTexture(canv)
+    sourceMesh.material.map = new THREE.Texture(canv)
+    //sourceMesh.material.map.needsUpdate = true;
+}
+
+if(!sourceMesh.geometry.attributes.uv)
+{
+    alert("Object has no UV map.. ")
+    UnwrapUVs(sourceMesh.geometry);
+}
+
+    /*
     let p=sourceMesh.position.clone().sub(controls.target);
     controls.target.add(p);
     camera.position.add(p);
-
+*/
     // sourceMesh.position.x -= .4;
-
 
     let texTransformer = new TextureTransformer(sourceMesh.material.map,renderer)
 
@@ -185,10 +230,11 @@ function ScenePainter(paintScene) {
         export: ()=>{
             exportTriggered = true;
         }
-    }, "export").name("export glb!")
+    }, "export").name("export glb!");
 
-    gui.add(paintMesh.material, "roughness", 0, 1);
-    gui.add(paintMesh.material, "metalness", 0, 1);
+
+    (paintMesh.material.roughness!==undefined) && gui.add(paintMesh.material, "roughness", 0, 1);
+    (paintMesh.material.metalness!==undefined) && gui.add(paintMesh.material, "metalness", 0, 1);
 
     gui.add({intensity:.25}, "intensity", 0, 1).name("env brightness:").onChange(setEnvBrightness)
     gui.add(previewPlane, 'visible').name('tex : ' + paintMesh.name);
@@ -281,7 +327,7 @@ varying vec3 vWorldPosition;
 
         shader.fragmentShader = shader.fragmentShader.replace('}', `
 #ifdef USE_MAP
-    //gl_FragColor=vec4(.0,fract(vUv*10.)*.2,1.);
+    //gl_FragColor=vec4(.0,fract(vMapUv*10.)*.2,1.);
 #endif
 
 ${computeBrushInfluence}
@@ -491,7 +537,7 @@ uniform mat4 uMatrixWorld;
 #include <begin_vertex>
 #ifdef USE_MAP
     vWorldPosition = (uMatrixWorld * vec4(transformed,1.)).xyz;
-    transformed = vec3(vUv,0.);
+    transformed = vec3(vMapUv,0.);
 #endif
 `
         }
@@ -504,7 +550,7 @@ ${brushVars}
 ` + shader.fragmentShader;
         shader.fragmentShader = shader.fragmentShader.replace('}', `
 #ifdef USE_MAP
-    //gl_FragColor=vec4(fract(vUv*10.),0.,1.);
+    //gl_FragColor=vec4(fract(vMapUv*10.),0.,1.);
     
 ${computeBrushInfluence}
 
@@ -540,7 +586,8 @@ function FeedbackTexture(texture, renderer) {
             //magFilter: THREE.NearestFilter,
             depthBuffer: false,
             stencilBuffer: false,
-            encoding: THREE.LinearEncoding
+            //encoding: THREE.LinearEncoding
+            colorSpace: THREE.LinearSRGBColorSpace
         });
         if (!FeedbackTexture.renderTargetMap) {
             FeedbackTexture.renderTargetMap = {}
@@ -566,9 +613,10 @@ function FeedbackTexture(texture, renderer) {
 
     const camera = this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
     // Render the scene to the render target
+    let saveTarget = renderer.getRenderTarget();
     renderer.setRenderTarget(renderTarget);
     renderer.render(scene, camera);
-    renderer.setRenderTarget(null);
+    renderer.setRenderTarget(saveTarget);
 
     let swap = this.swap = ()=>{
         let sv = renderTarget;
@@ -576,6 +624,7 @@ function FeedbackTexture(texture, renderer) {
         this.offRenderTarget = offRenderTarget = sv;
     }
     this.renderOperation = (destination,fn)=>{
+        let saveTarg = renderer.getRenderTarget();
         renderer.setRenderTarget(destination);
 
         let acSave = renderer.autoClearColor;
@@ -585,7 +634,7 @@ function FeedbackTexture(texture, renderer) {
 
         renderer.autoClearColor = acSave;
 
-        renderer.setRenderTarget(null);
+        renderer.setRenderTarget(saveTarg);
     }
 }
 
@@ -635,7 +684,7 @@ uniform vec2 uPaintTextureSize;
         //This shader hack dilates the UV island textures outwards to remove seams.
         shader.fragmentShader = shader.fragmentShader.replace('}', `
 #ifdef USE_MAP
-        vec4 maskColor = texture2D( map, vUv); //map is the mask texture
+        vec4 maskColor = texture2D( map, vMapUv); //map is the mask texture
         if(maskColor.r<.99){
             //OUtside the mask
             gl_FragColor.rgba = vec4(0.);
@@ -646,21 +695,21 @@ uniform vec2 uPaintTextureSize;
                 for( float x=-rad;x<rad;x++){
                     if((abs(x)<.5)&&(abs(y)<.5))continue;
                     vec2 txv=vec2(x,y) / uPaintTextureSize;
-                    vec4 clr = texture2D( map, vUv+txv );
+                    vec4 clr = texture2D( map, vMapUv+txv );
                     if(clr.r > .9){
                         float distance = length(vec2(x,y));
                         if(distance<closestDistance){
                             closestDistance = distance;
-                            closestColor = texture2D( uPaintTexture , vUv+txv );//.gbra;//clr.gbra;
+                            closestColor = texture2D( uPaintTexture , vMapUv+txv );//.gbra;//clr.gbra;
                         }
                     }
                 }
             }
             gl_FragColor = closestColor;
         }else
-            gl_FragColor = texture2D( uPaintTexture, vUv );//paintColor;//.rgb=sampledDiffuseColor.rgb*vec3(0.,1.,0.);
+            gl_FragColor = texture2D( uPaintTexture, vMapUv );//paintColor;//.rgb=sampledDiffuseColor.rgb*vec3(0.,1.,0.);
 
-//gl_FragColor = texture2D( uPaintTexture, vUv );
+//gl_FragColor = texture2D( uPaintTexture, vMapUv );
 
             
 #endif
@@ -689,6 +738,10 @@ function UVMask(transformer, material, uvMesh) {
 
     uvMaskShader.onBeforeCompile = (shader,renderer)=>{
         //This shader renders out a mask channel with vec4(1.) where the texel is covered by the UV and 0 otherwise.
+        
+    //    shader.vertexShader = `#extension GL_ANGLE_multi_draw : require
+    //    `+shader.vertexShader;
+        
         shader.vertexShader = `
 varying vec3 vWorldPosition;
 uniform mat4 uMatrixWorld;
@@ -697,7 +750,7 @@ uniform mat4 uMatrixWorld;
         patch(shader, 'vertexShader', 'begin_vertex', (ck,ckinc)=>ckinc + `
 #ifdef USE_MAP
     vWorldPosition = (uMatrixWorld * vec4(transformed,1.)).xyz;
-    transformed = vec3(vUv,0.);
+    transformed = vec3(vMapUv,0.);
 #endif
 `)
         shader.fragmentShader = shader.fragmentShader.replace('}', `
@@ -736,27 +789,31 @@ let exportTriggered = false;
 let {MOUSE} = THREE;
 controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.ROTATE };
 
-renderer.setAnimationLoop((dt)=>{
 
-    let time = performance.now();
+this.update = (time)=>{
+    
+    //let time = performance.now();
     // if(!lastTime)lastTime=time;
     //  fdt=time-lastTime;
     // if(fdt<fps)
     //   return;
     let substep = 0;
-
+    
     while (simTime < time) {
         let dt = 1 / fps;
         simTime += dt;
-
+    
         //update
-
+    
         substep++;
         if (substep >= maxSubsteps) {
             simTime = time;
             break;
         }
     }
+}
+
+this.render = (time)=>{
     controls.update();
     renderer.render(scene, camera);
     if (exportTriggered) {
@@ -764,4 +821,5 @@ renderer.setAnimationLoop((dt)=>{
         scenePainter.exportScene();
     }
 }
-);
+    this.ScenePainter = ScenePainter;
+}

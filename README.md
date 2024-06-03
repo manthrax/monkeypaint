@@ -3,8 +3,11 @@
 
 Try it here!: https://manthrax.github.io/monkeypaint/index.html?1
 
-
 This implements 3d mesh painting using via the gpu and rendertargets.
+
+Tested with threejs r160..
+For some older versions replace all "vMapUv" in ScenePainter.js
+with "vUv"
 
 Algorithm:
 First, the UV map is rendered as a 3d model onto a renderTarget in white, to form a binary mask of which pixels are covered by the UVmap
