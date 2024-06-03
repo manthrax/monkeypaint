@@ -149,23 +149,25 @@ onWindowResize();
 window.addEventListener("resize", onWindowResize, false);
 
 let cursorNode = new CursorNode(camera,renderer);
-renderer.domElement.style.cursor = 'none'
+renderer.domElement.style.cursor = 'crosshair'
 
 import PainterApp from "./ScenePainter.js"
 
 let painterApp = new PainterApp({THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode})
 
-
+renderer.render(scene,camera)
 
 //new GLTFLoader().load("teeth.glb", (glb)=>{
 //new GLTFLoader().load("male-form.glb", (glb)=>{
 //new GLTFLoader().load("female-form.glb", (glb)=>{
-new GLTFLoader().load("monkeh.glb", (glb)=>{
+let glb = await new GLTFLoader().loadAsync("monkeh.glb");
+let scenePainter = new painterApp.ScenePainter(glb.scene);
+
 //new GLTFLoader().load("den.gltf", (glb)=>{
 //new GLTFLoader().load("CartoonTV_bake.glb", (glb)=>{
-    let scenePainter = new painterApp.ScenePainter(glb.scene);
-}
-);
+//    let scenePainter = new painterApp.ScenePainter(glb.scene);
+//}
+//);
 
 
 

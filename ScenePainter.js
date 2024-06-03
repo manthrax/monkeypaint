@@ -7,7 +7,7 @@ MESH TEXTURE PAINTER by Thrax (C) - manthrax@gmail && vectorslave.com
 //import {THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode} from "./MonkeyPaint.js"
 import UnwrapUVs from "./UnwrapUVs.js"
 
-export default function PaintApp({THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode}){
+export default function PaintApp({THREE, GLTFLoader, GLTFExporter, scene, camera, controls, renderer, gui, cursorNode, paintSourceTexture}){
 
 //document.title = "MonkeyPaint by thrax"
 //---------------texpaint
@@ -263,6 +263,9 @@ if(!sourceMesh.geometry.attributes.uv)
     }
     )
 
+    let uViewMVPMatrix = {
+        value: new THREE.Matrix4()
+    }
     let uBrushPoint = {
         value: new THREE.Vector3()
     }
@@ -275,9 +278,13 @@ if(!sourceMesh.geometry.attributes.uv)
     let uMatrixWorld = {
         value: paintMesh.matrixWorld
     }
+    let uPaintSourceTexture = {
+        value: paintSourceTexture //null
+    }
     let setUniforms = (shader)=>{
 
         shader.uniforms.uMatrixWorld = uMatrixWorld
+        shader.uniforms.uViewMVPMatrix = uViewMVPMatrix
         shader.uniforms.uBrushSize = uBrushSize;
         shader.uniforms.uBrushPoint = uBrushPoint;
         shader.uniforms.uBrushNormal = uBrushNormal;
@@ -285,11 +292,16 @@ if(!sourceMesh.geometry.attributes.uv)
         shader.uniforms.uBrushHardness = uBrushHardness;
         shader.uniforms.uBrushStrength = uBrushStrength;
         shader.uniforms.uCursorPosition = uCursorPosition;
+        shader.uniforms.uPaintSourceTexture = uPaintSourceTexture;
     }
 
     let computeBrushInfluence = `
         float brushInfluence = 0.;
         vec3 brushDelta = (vWorldPosition-uBrushPoint) / uBrushSize.x;
+        
+        vec4 brushDeltaViewNDC = (vec4(vWorldPosition,1.) * uViewMVPMatrix);
+        brushDeltaViewNDC /= brushDeltaViewNDC.w;
+        
         float dist = min(1.,length(brushDelta));
         dist = length(brushDelta);
         brushInfluence = max(0.,1.-pow(dist,.1+(uBrushHardness*15.)));
@@ -305,6 +317,8 @@ uniform float uBrushStrength;
 uniform vec2 uCursorPosition;
 varying vec3 vWorldPosition;
 
+uniform mat4 uViewMVPMatrix;
+uniform sampler2D uPaintSourceTexture;
     `
 
     //This shader renders a model with the ghost of the brush cursor rendered on top...
@@ -333,6 +347,7 @@ varying vec3 vWorldPosition;
 ${computeBrushInfluence}
 
 brushInfluence = max(0., brushInfluence - smoothstep(brushInfluence,.1,0.));
+
   gl_FragColor = mix(gl_FragColor,uBrushColor,brushInfluence);
     
 }
@@ -559,7 +574,22 @@ ${computeBrushInfluence}
 
 
 //PAINT
-  gl_FragColor = mix(sampledDiffuseColor,uBrushColor,brushInfluence);
+
+vec4 brushColor = uBrushColor;
+
+${paintSourceTexture?`
+
+
+brushColor = texture2D(uPaintSourceTexture, brushDelta.xy);
+
+brushColor.rb = brushDelta.xy;
+//brushColor.rb = fract( gl_FragCoord.xy * .001);
+
+
+`:``}
+
+
+gl_FragColor = mix(sampledDiffuseColor,brushColor,brushInfluence);
 
 
 //gl_FragColor.rgb=vec3(fract(length(uBrushPoint-vWorldPosition)*10.));
@@ -815,6 +845,7 @@ this.update = (time)=>{
 
 this.render = (time)=>{
     controls.update();
+    renderer.setRenderTarget(null)
     renderer.render(scene, camera);
     if (exportTriggered) {
         exportTriggered = false;
