@@ -263,9 +263,13 @@ if(!sourceMesh.geometry.attributes.uv)
     }
     )
 
-    let uViewMVPMatrix = {
-        value: new THREE.Matrix4()
+    let uCamViewMatrix = {
+        value: camera.matrixWorldInverse
     }
+    let uCamProjectionMatrix = {
+        value: camera.projectionMatrix
+    }
+    
     let uBrushPoint = {
         value: new THREE.Vector3()
     }
@@ -284,7 +288,8 @@ if(!sourceMesh.geometry.attributes.uv)
     let setUniforms = (shader)=>{
 
         shader.uniforms.uMatrixWorld = uMatrixWorld
-        shader.uniforms.uViewMVPMatrix = uViewMVPMatrix
+        shader.uniforms.uCamViewMatrix = uCamViewMatrix
+        shader.uniforms.uCamProjectionMatrix = uCamProjectionMatrix
         shader.uniforms.uBrushSize = uBrushSize;
         shader.uniforms.uBrushPoint = uBrushPoint;
         shader.uniforms.uBrushNormal = uBrushNormal;
@@ -299,8 +304,9 @@ if(!sourceMesh.geometry.attributes.uv)
         float brushInfluence = 0.;
         vec3 brushDelta = (vWorldPosition-uBrushPoint) / uBrushSize.x;
         
-        vec4 brushDeltaViewNDC = (vec4(vWorldPosition,1.) * uViewMVPMatrix);
-        brushDeltaViewNDC /= brushDeltaViewNDC.w;
+        vec4 brushScreen =  uCamViewMatrix  * vec4(vWorldPosition,1.);
+        brushScreen = uCamProjectionMatrix * brushScreen;
+        brushScreen /= brushScreen.w;
         
         float dist = min(1.,length(brushDelta));
         dist = length(brushDelta);
@@ -317,7 +323,9 @@ uniform float uBrushStrength;
 uniform vec2 uCursorPosition;
 varying vec3 vWorldPosition;
 
-uniform mat4 uViewMVPMatrix;
+uniform mat4 uCamViewMatrix;
+uniform mat4 uCamProjectionMatrix;
+
 uniform sampler2D uPaintSourceTexture;
     `
 
@@ -579,15 +587,14 @@ vec4 brushColor = uBrushColor;
 
 ${paintSourceTexture?`
 
+//brushColor.rgb = fract(brushScreen.xyz*20.);//vec3(1.,0.,0.);//brushScreen.xyz*.01;
 
-brushColor = texture2D(uPaintSourceTexture, brushDelta.xy);
+vec2 brushUV = (brushScreen.xy*.5)+.5;
 
-brushColor.rb = brushDelta.xy;
-//brushColor.rb = fract( gl_FragCoord.xy * .001);
+brushColor = texture2D(uPaintSourceTexture, brushUV);
 
 
 `:``}
-
 
 gl_FragColor = mix(sampledDiffuseColor,brushColor,brushInfluence);
 
@@ -617,7 +624,7 @@ function FeedbackTexture(texture, renderer) {
             depthBuffer: false,
             stencilBuffer: false,
             //encoding: THREE.LinearEncoding
-            colorSpace: THREE.LinearSRGBColorSpace
+            colorSpace: "" //THREE.LinearSRGBColorSpace
         });
         if (!FeedbackTexture.renderTargetMap) {
             FeedbackTexture.renderTargetMap = {}
