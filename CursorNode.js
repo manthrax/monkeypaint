@@ -11,7 +11,7 @@ class ScreenSpaceNode {
             opacity: 1.,
             side: THREE.DoubleSide
         }));
-        let loader = new THREE.TextureLoader().load("cursor.png", (tex)=>{
+        let loader = new THREE.TextureLoader().load("./assets/cursor.png", (tex)=>{
             this.plane.material.map = tex;
             this.plane.scale.x = 1;
             this.plane.scale.y = tex.image.height / tex.image.width;
@@ -79,7 +79,7 @@ this.groundPoint = new THREE.Vector3();
         this.marker.material.opacity = .5;
         this.marker.material.blending = THREE.AdditiveBlending;
         let c = this.marker.clone();
-        this.marker.material.map = new THREE.TextureLoader().load("crosshair.png", (tex)=>{
+        this.marker.material.map = new THREE.TextureLoader().load("./assets/crosshair.png", (tex)=>{
             this.marker.material.map = tex;
 
             c.material = this.marker.material.clone();
