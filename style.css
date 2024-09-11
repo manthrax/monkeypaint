@@ -37,4 +37,7 @@ to this section's matching END comment to see page-specific styles.
 body {
   font-family: HK Grotesk;
   background:black;
+  margin:0px;
+  padding:0px;
+  overflow:hidden;
 }

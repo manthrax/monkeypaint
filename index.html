@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <link rel="stylesheet" href="./style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonkeyPaint</title>
+    <link rel="stylesheet" href="./style.css">
+    
     <script type="importmap">
     {
         "imports": {
-            "three": "./three.module.js",
-            "threeModules/": "https://threejs.org/examples/jsm/"
+            "three": "https://threejs.org/build/three.module.js",
+            "three/addons/": "https://threejs.org/examples/jsm/"
         }
     }
     </script>
-    <script type='module' src="./ScenePainter.js" defer></script>
+    <script type="module" src="./MonkeyPaint.js"></script>
   </head>
   <body>
+    <canvas id="monkeyPaintCanvas"></canvas>
   </body>
 </html>
