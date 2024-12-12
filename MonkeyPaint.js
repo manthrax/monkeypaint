@@ -167,7 +167,7 @@ const scenePainter = new painterApp.ScenePainter(glb.scene);
 //);
 
 renderer.setAnimationLoop((time) => {
-    //painterApp.update(time);
+    scenePainter.update(time);
     painterApp.render(time)
 })
 
